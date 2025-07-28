@@ -738,6 +738,8 @@ void print_usage(const char *prog_name) {
     printf("  %s -l 10.0.0.0/8                     # Lazy mode\n", prog_name);
     printf("  %s -m                                 # Manual mode\n", prog_name);
     printf("  %s --no-color 172.16.0.0/12          # No colors\n", prog_name);
+
+	print_color(COLOR_BOLD, "\nCoded by Yo-omega (https://github.com/Yo-omega)\n");
 }
 
 void init_colors(void) {
