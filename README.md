@@ -14,20 +14,17 @@ Net Calculator is a command-line tool for advanced network calculations and subn
 
 ## How to Compile
 
-This tool is written in C and requires a POSIX-compatible system (Linux, macOS, etc.) with a C compiler.
+This tool is written in C and requires a POSIX-compatible system (Linux, macOS, etc.) with a C compiler and Make.
 
-1. Ensure you have a C compiler installed (`gcc` or `clang`).
+1. Ensure you have a C compiler (`gcc` or `clang`) and `make` installed.
 2. Download or clone the repository.
 3. Build the program by running:
-
    ```sh
-   gcc -o net_calculator net.c
+   make
    ```
-
-   Or, if you want to include warnings and debugging:
-
+   To build with debugging symbols, you can run:
    ```sh
-   gcc -Wall -Wextra -g -o net_calculator net.c
+   make CFLAGS="-Wall -Wextra -g"
    ```
 
 ## How to Use
