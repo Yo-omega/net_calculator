@@ -1,6 +1,6 @@
 CC=gcc
 CFLAGS=-Wall -Wextra -g
-TARGET=net_calculator
+TARGET=net_tool
 SRC=net.c
 OBJ=$(SRC:.c=.o)
 

@@ -1,6 +1,6 @@
-# Net Calculator
+# Net Tool
 
-Net Calculator is a command-line tool for advanced network calculations and subnet analysis. It helps network engineers, students, and IT professionals quickly determine network/broadcast addresses, usable IP ranges, perform subnetting, and generate routing table entries.
+Net Tool is a command-line utility for advanced network calculations and subnet analysis. It helps network engineers, students, and IT professionals quickly determine network/broadcast addresses, usable IP ranges, perform subnetting, and generate routing table entries.
 
 ## Features
 
@@ -32,7 +32,7 @@ This tool is written in C and requires a POSIX-compatible system (Linux, macOS, 
 Run the program from the command line:
 
 ```sh
-./net_calculator [OPTIONS] [NETWORK]
+./net_tool [OPTIONS] [NETWORK]
 ```
 
 ### Options
@@ -53,28 +53,28 @@ You may specify the target network in several formats:
 
 ### Examples
 
-- Analyze a network (lazy mode):
+- Analyze a network:
 
   ```sh
-  ./net_calculator 192.168.1.10/24
+  ./net_tool 192.168.1.10/24
   ```
 
 - Start in lazy mode with a specified network:
 
   ```sh
-  ./net_calculator -l 10.0.0.0/8
+  ./net_tool -l 10.0.0.0/8
   ```
 
 - Use manual mode for interactive menu:
 
   ```sh
-  ./net_calculator -m
+  ./net_tool -m
   ```
 
 - Disable color output:
 
   ```sh
-  ./net_calculator --no-color 172.16.0.0/12
+  ./net_tool --no-color 172.16.0.0/12
   ```
 
 ### Manual Mode Features
