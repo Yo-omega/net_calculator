@@ -734,28 +734,53 @@ void manual_mode(void) {
 }
 
 void print_usage(const char *prog_name) {
-    print_header("Network Configuration Tool");
-    printf("Usage: %s [OPTIONS] [NETWORK]\n\n", prog_name);
-    
-    print_color(ANSI_STYLE_BOLD, "OPTIONS:\n");
-    printf("  -l, --lazy [NETWORK]     Lazy mode - analyze network (default)\n");
-    printf("  -m, --manual             Manual mode - interactive menu\n");
-    printf("  -h, --help               Show this help message\n");
-    printf("  --no-color               Disable color output\n\n");
-    
-    print_color(ANSI_STYLE_BOLD, "NETWORK FORMATS:\n");
-    printf("  • IP/CIDR:     192.168.1.10/24\n");
-    printf("  • IP MASK:     192.168.1.10 255.255.255.0\n");
-    printf("  • IP CIDR:     192.168.1.10 24\n");
-    printf("  • Just IP:     192.168.1.10 (assumes /32)\n\n");
-    
-    print_color(ANSI_STYLE_BOLD, "EXAMPLES:\n");
-    printf("  %s 192.168.1.10/24                    # Analyze network\n", prog_name);
-    printf("  %s -l 10.0.0.0/8                     # Lazy mode\n", prog_name);
-    printf("  %s -m                                 # Manual mode\n", prog_name);
-    printf("  %s --no-color 172.16.0.0/12          # No colors\n", prog_name);
+    print_header("Net Tool - Network Calculator");
+    printf("Usage: %s [OPTIONS] [NETWORK]
 
-	print_color(ANSI_STYLE_BOLD, "\nCoded by Yo-omega (https://github.com/Yo-omega)\n");
+", prog_name);
+    
+    print_color(ANSI_STYLE_BOLD, "PRIMARY USAGE:
+");
+    printf("  %s <NETWORK>              Analyze a network (e.g., 192.168.1.10/24)
+
+", prog_name);
+
+    print_color(ANSI_STYLE_BOLD, "OPTIONS:
+");
+    printf("  -a, --analyze <NETWORK>    Analyze a network
+");
+    printf("  -s, --subnet <NETWORK> <NEW_CIDR> Subnet a network
+");
+    printf("  -b, --and <IP> <MASK/CIDR> Perform bitwise AND operation
+");
+    printf("  -d, --dec2bin <0-255>      Convert decimal octet to binary/hex
+");
+    printf("  -B, --bin2dec <BINARY>     Convert binary octet to decimal/hex
+");
+    printf("  -c, --cidr2mask <CIDR>     Convert CIDR to mask in various formats
+");
+    printf("  -r, --route                Generate a routing table
+");
+    printf("  -h, --help                 Show this help message
+");
+    printf("  --no-color                 Disable color output
+
+");
+    
+    print_color(ANSI_STYLE_BOLD, "EXAMPLES:
+");
+    printf("  %s 192.168.1.10/24
+", prog_name);
+    printf("  %s --subnet 192.168.0.0/24 26
+", prog_name);
+    printf("  %s --and 192.168.1.100 255.255.255.0
+", prog_name);
+    printf("  %s --dec2bin 192
+", prog_name);
+
+	print_color(ANSI_STYLE_BOLD, "
+Coded by Yo-omega (https://github.com/Yo-omega)
+");
 }
 
 void init_colors(void) {
@@ -764,61 +789,79 @@ void init_colors(void) {
     }
 }
 
-int parse_args(int argc, char *argv[], char **network_input) {
-    int mode = 1; 
-    *network_input = NULL;
-    
-    for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
-            print_usage(argv[0]);
-            exit(0);
-        } else if (strcmp(argv[i], "-l") == 0 || strcmp(argv[i], "--lazy") == 0) {
-            mode = 1;
-            if (i + 1 < argc && argv[i + 1][0] != '-') {
-                *network_input = argv[++i];
-            }
-        } else if (strcmp(argv[i], "-m") == 0 || strcmp(argv[i], "--manual") == 0) {
-            mode = 2;
-        } else if (strcmp(argv[i], "--no-color") == 0) {
-            use_colors = 0;
-        } else if (argv[i][0] != '-' && *network_input == NULL) {
-            *network_input = argv[i];
-        } else {
-            print_error("Unknown or duplicate option");
-            printf("Use -h or --help for usage information\n");
-            exit(1);
-        }
-    }
-    
-    return mode;
-}
-
 int main(int argc, char *argv[]) {
-    char *network_input = NULL;
-    int mode;
-    
     init_colors();
-    
+
     if (argc == 1) {
         print_usage(argv[0]);
         return 0;
     }
-    
-    mode = parse_args(argc, argv, &network_input);
 
-    if (mode == 1) {
-        if (network_input) {
-            lazy_mode(network_input);
-        } else {
-            print_error("No network specified for lazy mode.");
-            print_usage(argv[0]);
-            return 1;
+    static struct option long_options[] = {
+        {"analyze",   required_argument, 0, 'a'},
+        {"subnet",    required_argument, 0, 's'},
+        {"and",       required_argument, 0, 'b'},
+        {"dec2bin",   required_argument, 0, 'd'},
+        {"bin2dec",   required_argument, 0, 'B'},
+        {"cidr2mask", required_argument, 0, 'c'},
+        {"route",     no_argument,       0, 'r'},
+        {"help",      no_argument,       0, 'h'},
+        {"no-color",  no_argument,       0,  0 },
+        {0, 0, 0, 0}
+    };
+
+    int opt, long_index = 0;
+    char* subnet_arg = NULL;
+
+    while ((opt = getopt_long(argc, argv, "a:s:b:d:B:c:rh", long_options, &long_index)) != -1) {
+        switch (opt) {
+            case 'a':
+                lazy_mode(optarg);
+                break;
+            case 's':
+                subnet_arg = optarg;
+                if (optind < argc && argv[optind][0] != '-') {
+                    subnetting(subnet_arg, argv[optind]);
+                } else {
+                    print_error("Subnetting requires a new CIDR value.");
+                }
+                break;
+            case 'b':
+                if (optind < argc && argv[optind][0] != '-') {
+                    bitwise_and_operation(optarg, argv[optind]);
+                } else {
+                    print_error("Bitwise AND requires a mask or CIDR.");
+                }
+                break;
+            case 'd':
+                decimal_to_binary(atoi(optarg));
+                break;
+            case 'B':
+                binary_to_decimal(optarg);
+                break;
+            case 'c':
+                cidr_to_binary_mask(optarg);
+                break;
+            case 'r':
+                generate_routing_table();
+                break;
+            case 'h':
+                print_usage(argv[0]);
+                break;
+            case 0: // For --no-color
+                if (strcmp("no-color", long_options[long_index].name) == 0) {
+                    use_colors = 0;
+                }
+                break;
+            default:
+                print_usage(argv[0]);
+                return 1;
         }
-    } else if (mode == 2) {
-        manual_mode();
     }
-    
-    printf("\n");
-    print_success("Operation completed successfully");
+
+    if (optind == 1) {
+        lazy_mode(argv[1]);
+    }
+
     return 0;
 }

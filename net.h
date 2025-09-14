@@ -8,6 +8,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <stdarg.h>
+#include <getopt.h>
 
 #define MAX_INPUT 256
 #define MAX_SUBNETS 1024
