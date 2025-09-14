@@ -11,47 +11,47 @@ void print_color(const char* color, const char* format, ...) {
     vprintf(format, args);
     va_end(args);
     if (use_colors) {
-        printf("%s", COLOR_RESET);
+        printf("%s", ANSI_COLOR_RESET);
     }
 }
 
 void print_error(const char* msg) {
-    print_color(COLOR_RED, "Error: ");
+    print_color(ANSI_COLOR_RED, "Error: ");
     printf("%s\n", msg);
 }
 
 void print_success(const char* msg) {
-    print_color(COLOR_GREEN, "Success: ");
+    print_color(ANSI_COLOR_GREEN, "Success: ");
     printf("%s\n", msg);
 }
 
 void print_warning(const char* msg) {
-    print_color(COLOR_YELLOW, "Warning: ");
+    print_color(ANSI_COLOR_YELLOW, "Warning: ");
     printf("%s\n", msg);
 }
 
 void print_info(const char* msg) {
-    print_color(COLOR_CYAN, "Info: ");
+    print_color(ANSI_COLOR_CYAN, "Info: ");
     printf("%s\n", msg);
 }
 
 void print_header(const char* text) {
-    print_color(COLOR_BOLD COLOR_BLUE, text);
+    print_color(ANSI_STYLE_BOLD ANSI_COLOR_BLUE, text);
     printf("\n");
 }
 
 void print_separator(void) {
-    print_color(COLOR_BLUE, "================================================\n");
+    print_color(ANSI_COLOR_BLUE, "================================================\n");
 }
 
 typedef struct {
-    uint32_t network_addr;
-    uint32_t broadcast_addr;
+    uint32_t network_address;
+    uint32_t broadcast_address;
     uint32_t subnet_mask;
-    uint32_t first_host;
-    uint32_t last_host;
-    int prefix_len;
-    int num_hosts;
+    uint32_t first_host_address;
+    uint32_t last_host_address;
+    int prefix_length;
+    int host_count;
 } network_info_t;
 
 int safe_input(char *buffer, int size) {
@@ -65,7 +65,7 @@ int safe_input(char *buffer, int size) {
     return 1;
 }
 
-int ip_to_int(const char *ip_str, uint32_t *ip_int) {
+int parse_ip(const char *ip_str, uint32_t *ip_int) {
     struct in_addr addr;
     if (inet_aton(ip_str, &addr) == 0) {
         return 0;
@@ -74,37 +74,36 @@ int ip_to_int(const char *ip_str, uint32_t *ip_int) {
     return 1;
 }
 
-void int_to_ip(uint32_t ip_int, char *ip_str) {
+void format_ip(uint32_t ip_int, char *ip_str) {
     struct in_addr addr;
     addr.s_addr = htonl(ip_int);
     strcpy(ip_str, inet_ntoa(addr));
 }
 
-uint32_t cidr_to_mask(int prefix_len) {
-    if (prefix_len < 0 || prefix_len > 32) {
+uint32_t cidr_to_mask(int prefix_length) {
+    if (prefix_length < 0 || prefix_length > 32) {
         return 0;
     }
-    if (prefix_len == 0) {
+    if (prefix_length == 0) {
         return 0;
     }
-    return 0xFFFFFFFF << (32 - prefix_len);
+    return 0xFFFFFFFF << (32 - prefix_length);
 }
 
 int mask_to_cidr(uint32_t mask) {
-    int count = 0;
-    uint32_t temp = mask;
-    
-    while (temp) {
-        if ((temp & 1) == 0) {
-            if (temp != 0) {
-                return -1;
+    int prefix_length = 0;
+    int seen_zero = 0;
+    for (int i = 31; i >= 0; i--) {
+        if ((mask >> i) & 1) {
+            if (seen_zero) {
+                return -1; // Non-contiguous mask
             }
-            break;
+            prefix_length++;
+        } else {
+            seen_zero = 1;
         }
-        count++;
-        temp >>= 1;
     }
-    return 32 - count;
+    return prefix_length;
 }
 
 int parse_cidr(const char *input) {
@@ -136,12 +135,12 @@ int parse_ip_network(const char *input, uint32_t *ip, int *prefix_len) {
         
         while (*mask_str == ' ') mask_str++;
         
-        if (!ip_to_int(input_copy, ip)) {
+        if (!parse_ip(input_copy, ip)) {
             return 0;
         }
         
         uint32_t mask;
-        if (ip_to_int(mask_str, &mask)) {
+        if (parse_ip(mask_str, &mask)) {
             *prefix_len = mask_to_cidr(mask);
             return (*prefix_len != -1);
         } else {
@@ -154,7 +153,7 @@ int parse_ip_network(const char *input, uint32_t *ip, int *prefix_len) {
     if (slash_pos) {
         *slash_pos = '\0';
         
-        if (!ip_to_int(input_copy, ip)) {
+        if (!parse_ip(input_copy, ip)) {
             return 0;
         }
         
@@ -162,7 +161,7 @@ int parse_ip_network(const char *input, uint32_t *ip, int *prefix_len) {
         return (*prefix_len != -1);
     }
     
-    if (ip_to_int(input_copy, ip)) {
+    if (parse_ip(input_copy, ip)) {
         *prefix_len = 32;
         return 1;
     }
@@ -177,24 +176,24 @@ int calculate_network_info(uint32_t ip, int prefix_len, network_info_t *info) {
     
     info->prefix_len = prefix_len;
     info->subnet_mask = cidr_to_mask(prefix_len);
-    info->network_addr = ip & info->subnet_mask;
+    info->network_address = ip & info->subnet_mask;
     
     if (prefix_len == 32) {
-        info->broadcast_addr = info->network_addr;
-        info->first_host = 0;
-        info->last_host = 0;
-        info->num_hosts = 0;
+        info->broadcast_address = info->network_address;
+        info->first_host_address = 0;
+        info->last_host_address = 0;
+        info->host_count = 0;
     } else if (prefix_len == 31) {
-        info->broadcast_addr = info->network_addr + 1;
-        info->first_host = info->network_addr;
-        info->last_host = info->network_addr + 1;
-        info->num_hosts = 2;
+        info->broadcast_address = info->network_address + 1;
+        info->first_host_address = info->network_address;
+        info->last_host_address = info->network_address + 1;
+        info->host_count = 2;
     } else {
         uint32_t host_mask = ~info->subnet_mask;
-        info->broadcast_addr = info->network_addr | host_mask;
-        info->first_host = info->network_addr + 1;
-        info->last_host = info->broadcast_addr - 1;
-        info->num_hosts = (1U << (32 - prefix_len)) - 2;
+        info->broadcast_address = info->network_address | host_mask;
+        info->first_host_address = info->network_address + 1;
+        info->last_host_address = info->broadcast_address - 1;
+        info->host_count = (1U << (32 - prefix_len)) - 2;
     }
     
     return 1;
@@ -225,40 +224,40 @@ void lazy_mode(const char *input) {
     
     print_separator();
     
-    int_to_ip(info.network_addr, ip_str);
+    format_ip(info.network_address, ip_str);
     print_color(COLOR_BOLD, "Network Address: ");
     print_color(COLOR_GREEN, "%s", ip_str);
     printf("\n");
     
-    int_to_ip(info.subnet_mask, ip_str);
+    format_ip(info.subnet_mask, ip_str);
     print_color(COLOR_BOLD, "Subnet Mask: ");
     print_color(COLOR_GREEN, "%s", ip_str);
     printf(" ");
     print_color(COLOR_CYAN, "(/%d)", info.prefix_len);
     printf("\n");
 	
-	int_to_ip(info.broadcast_addr, ip_str);
+	format_ip(info.broadcast_address, ip_str);
 	print_color(COLOR_BOLD, "Broadcast Address: ");
 	print_color(COLOR_GREEN, "%s", ip_str);
 	printf("\n");
     
-    if (info.num_hosts > 0) {
-        int_to_ip(info.first_host, ip_str);
+    if (info.host_count > 0) {
+        format_ip(info.first_host_address, ip_str);
         print_color(COLOR_BOLD, "Host Range: ");
         print_color(COLOR_YELLOW, "%s", ip_str);
         printf(" - ");
-        int_to_ip(info.last_host, ip_str);
+        format_ip(info.last_host_address, ip_str);
         print_color(COLOR_YELLOW, "%s", ip_str);
         printf("\n");
         print_color(COLOR_BOLD, "Number of Hosts: ");
-        print_color(COLOR_MAGENTA, "%d", info.num_hosts);
+        print_color(COLOR_MAGENTA, "%d", info.host_count);
         printf("\n");
     } else if (prefix_len == 31) {
-        int_to_ip(info.first_host, ip_str);
+        format_ip(info.first_host_address, ip_str);
         print_color(COLOR_BOLD, "Host Range: ");
         print_color(COLOR_YELLOW, "%s", ip_str);
         printf(" - ");
-        int_to_ip(info.last_host, ip_str);
+        format_ip(info.last_host_address, ip_str);
         print_color(COLOR_YELLOW, ip_str);
         print_color(COLOR_CYAN, " (point-to-point)");
         printf("\n");
@@ -281,12 +280,12 @@ void bitwise_and_operation(const char *ip_str, const char *mask_input) {
     uint32_t ip, mask, result;
     char result_str[INET_ADDRSTRLEN];
     
-    if (!ip_to_int(ip_str, &ip)) {
+    if (!parse_ip(ip_str, &ip)) {
         print_error("Invalid IP address format");
         return;
     }
     
-    if (ip_to_int(mask_input, &mask)){}
+    if (parse_ip(mask_input, &mask)){}
 	else {
         int cidr = parse_cidr(mask_input);
         if (cidr == -1) {
@@ -297,7 +296,7 @@ void bitwise_and_operation(const char *ip_str, const char *mask_input) {
     }
     
     result = ip & mask;
-    int_to_ip(result, result_str);
+    format_ip(result, result_str);
     
     print_color(COLOR_BOLD, "Network Address: ");
     print_color(COLOR_GREEN, "%s", result_str);
@@ -376,7 +375,7 @@ void cidr_to_binary_mask(const char *cidr_input) {
     
     uint32_t mask = cidr_to_mask(cidr);
     char mask_str[INET_ADDRSTRLEN];
-    int_to_ip(mask, mask_str);
+    format_ip(mask, mask_str);
     
     print_color(COLOR_BOLD, "CIDR: ");
     print_color(COLOR_CYAN, "/%d", cidr);
@@ -439,7 +438,7 @@ void subnetting(const char *network_str, const char *new_cidr_str) {
     print_header("=== Subnetting Results ===");
     print_color(COLOR_BOLD, "Original Network: ");
     char orig_ip[INET_ADDRSTRLEN];
-    int_to_ip(network_addr, orig_ip);
+    format_ip(network_addr, orig_ip);
     print_color(COLOR_CYAN, "%s/%d", orig_ip, original_cidr);
     printf("\n");
     
@@ -463,13 +462,13 @@ void subnetting(const char *network_str, const char *new_cidr_str) {
         if (calculate_network_info(subnet_addr, new_cidr, &subnet_info)) {
             char subnet_ip[INET_ADDRSTRLEN], first_host[INET_ADDRSTRLEN], last_host[INET_ADDRSTRLEN];
             
-            int_to_ip(subnet_info.network_addr, subnet_ip);
+            format_ip(subnet_info.network_address, subnet_ip);
             
-            if (subnet_info.num_hosts > 0) {
-                int_to_ip(subnet_info.first_host, first_host);
-                int_to_ip(subnet_info.last_host, last_host);
+            if (subnet_info.host_count > 0) {
+                format_ip(subnet_info.first_host_address, first_host);
+                format_ip(subnet_info.last_host_address, last_host);
                 printf("%-20s/%-2d %-15s %-15s %-10d\n", 
-                       subnet_ip, new_cidr, first_host, last_host, subnet_info.num_hosts);
+                       subnet_ip, new_cidr, first_host, last_host, subnet_info.host_count);
             } else {
                 printf("%-20s/%-2d %-15s %-15s %-10s\n", 
                        subnet_ip, new_cidr, "N/A", "N/A", "0");
@@ -542,7 +541,7 @@ void generate_routing_table(void) {
     }
     
     uint32_t next_hop_ip;
-    if (!ip_to_int(next_hop, &next_hop_ip)) {
+    if (!parse_ip(next_hop, &next_hop_ip)) {
         print_error("Invalid next-hop IP address");
         return;
     }
@@ -562,7 +561,7 @@ void generate_routing_table(void) {
             
             char formatted_dest[MAX_INPUT];
             char dest_ip_str[INET_ADDRSTRLEN];
-            int_to_ip(dest_ip & cidr_to_mask(prefix_len), dest_ip_str);
+            format_ip(dest_ip & cidr_to_mask(prefix_len), dest_ip_str);
             snprintf(formatted_dest, sizeof(formatted_dest), "%s/%d", dest_ip_str, prefix_len);
             
             printf("%-25s %-15s ", formatted_dest, next_hop);
@@ -606,7 +605,7 @@ void generate_routing_table(void) {
                     
                     char formatted_dest[MAX_INPUT];
                     char dest_ip_str[INET_ADDRSTRLEN];
-                    int_to_ip(dest_ip & cidr_to_mask(prefix_len), dest_ip_str);
+                    format_ip(dest_ip & cidr_to_mask(prefix_len), dest_ip_str);
                     snprintf(formatted_dest, sizeof(formatted_dest), "%s/%d", dest_ip_str, prefix_len);
                     
                     switch (choice) {

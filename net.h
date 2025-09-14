@@ -13,14 +13,14 @@
 #define MAX_SUBNETS 1024
 #define MAX_DESTINATIONS 100
 
-#define COLOR_RESET     "\033[0m"
-#define COLOR_RED       "\033[31m"
-#define COLOR_GREEN     "\033[32m"
-#define COLOR_YELLOW    "\033[33m"
-#define COLOR_BLUE      "\033[34m"
-#define COLOR_MAGENTA   "\033[35m"
-#define COLOR_CYAN      "\033[36m"
-#define COLOR_WHITE     "\033[37m"
-#define COLOR_BOLD      "\033[1m"
+#define ANSI_COLOR_RESET   "\x1b[0m"
+#define ANSI_COLOR_RED     "\x1b[31m"
+#define ANSI_COLOR_GREEN   "\x1b[32m"
+#define ANSI_COLOR_YELLOW  "\x1b[33m"
+#define ANSI_COLOR_BLUE    "\x1b[34m"
+#define ANSI_COLOR_MAGENTA "\x1b[35m"
+#define ANSI_COLOR_CYAN    "\x1b[36m"
+#define ANSI_COLOR_WHITE   "\x1b[37m"
+#define ANSI_STYLE_BOLD    "\x1b[1m"
 
 #endif
