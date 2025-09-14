@@ -182,7 +182,8 @@ int parse_ip_network(const char *input, uint32_t *ip, int *prefix_len) {
 }
 
 void format_binary(uint32_t num, char* out_str, size_t out_len) {
-    int pos = 0;
+    if (out_len == 0) return;
+    size_t pos = 0;
     for (int i = 31; i >= 0 && pos < out_len - 1; i--) {
         out_str[pos++] = ((num >> i) & 1) ? '1' : '0';
         if (i % 8 == 0 && i > 0 && pos < out_len - 1) {
@@ -191,6 +192,8 @@ void format_binary(uint32_t num, char* out_str, size_t out_len) {
     }
     out_str[pos] = '\0';
 }
+
+void display_network_analysis(const network_info_t* info);
 
 int calculate_network_info(uint32_t ip, int prefix_len, network_info_t *info) {
     if (prefix_len < 0 || prefix_len > 32) {
@@ -226,7 +229,6 @@ void lazy_mode(const char *input) {
     uint32_t ip;
     int prefix_len;
     network_info_t info;
-    char ip_str[INET_ADDRSTRLEN];
     
     print_header("=== Network Analysis (Lazy Mode) ===");
     
@@ -247,57 +249,54 @@ void lazy_mode(const char *input) {
     
     print_separator();
     
-    format_ip(info.network_address, ip_str, sizeof(ip_str));
+    display_network_analysis(&info);
+}
+
+void display_network_analysis(const network_info_t* info) {
+    char ip_str[INET_ADDRSTRLEN];
+
+    print_header("=== Network Analysis ===");
+
+    format_ip(info->network_address, ip_str, sizeof(ip_str));
     print_color(ANSI_STYLE_BOLD, "Network Address: ");
     print_color(ANSI_COLOR_GREEN, "%s", ip_str);
     printf("\n");
-    
-    format_ip(info.subnet_mask, ip_str, sizeof(ip_str));
-    print_color(ANSI_STYLE_BOLD, "Subnet Mask: ");
+
+    format_ip(info->subnet_mask, ip_str, sizeof(ip_str));
+    print_color(ANSI_STYLE_BOLD, "Subnet Mask:     ");
     print_color(ANSI_COLOR_GREEN, "%s", ip_str);
     printf(" ");
-    print_color(ANSI_COLOR_CYAN, "(/%d)", info.prefix_length);
+    print_color(ANSI_COLOR_CYAN, "(/%d)", info->prefix_length);
     printf("\n");
-	
-	format_ip(info.broadcast_address, ip_str, sizeof(ip_str));
-	print_color(ANSI_STYLE_BOLD, "Broadcast Address: ");
-	print_color(ANSI_COLOR_GREEN, "%s", ip_str);
-	printf("\n");
-    
-    if (info.host_count > 0) {
-        format_ip(info.first_host_address, ip_str, sizeof(ip_str));
-        print_color(ANSI_STYLE_BOLD, "Host Range: ");
+
+    format_ip(info->broadcast_address, ip_str, sizeof(ip_str));
+    print_color(ANSI_STYLE_BOLD, "Broadcast Addr:  ");
+    print_color(ANSI_COLOR_GREEN, "%s", ip_str);
+    printf("\n");
+
+    if (info->host_count > 0) {
+        format_ip(info->first_host_address, ip_str, sizeof(ip_str));
+        print_color(ANSI_STYLE_BOLD, "Host Range:      ");
         print_color(ANSI_COLOR_YELLOW, "%s", ip_str);
         printf(" - ");
-        format_ip(info.last_host_address, ip_str, sizeof(ip_str));
+        format_ip(info->last_host_address, ip_str, sizeof(ip_str));
         print_color(ANSI_COLOR_YELLOW, "%s", ip_str);
         printf("\n");
         print_color(ANSI_STYLE_BOLD, "Number of Hosts: ");
-        print_color(ANSI_COLOR_MAGENTA, "%d", info.host_count);
-        printf("\n");
-    } else if (prefix_len == 31) {
-        format_ip(info.first_host_address, ip_str, sizeof(ip_str));
-        print_color(ANSI_STYLE_BOLD, "Host Range: ");
-        print_color(ANSI_COLOR_YELLOW, "%s", ip_str);
-        printf(" - ");
-        format_ip(info.last_host_address, ip_str, sizeof(ip_str));
-        print_color(ANSI_COLOR_YELLOW, ip_str);
-        print_color(ANSI_COLOR_CYAN, " (point-to-point)");
-        printf("\n");
-        print_color(ANSI_STYLE_BOLD, "Number of Hosts: ");
-        print_color(ANSI_COLOR_MAGENTA, "2");
+        print_color(ANSI_COLOR_MAGENTA, "%d", info->host_count);
         printf("\n");
     } else {
-        print_color(ANSI_STYLE_BOLD, "Host Range: ");
-        print_color(ANSI_COLOR_RED, "No hosts (host route)");
+        print_color(ANSI_STYLE_BOLD, "Host Range:      ");
+        print_color(ANSI_COLOR_RED, "N/A");
         printf("\n");
         print_color(ANSI_STYLE_BOLD, "Number of Hosts: ");
         print_color(ANSI_COLOR_MAGENTA, "0");
         printf("\n");
     }
-    
+
     print_separator();
 }
+
 
 void bitwise_and_operation(const char *ip_str, const char *mask_input) {
     uint32_t ip, mask, result;
