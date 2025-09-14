@@ -181,6 +181,17 @@ int parse_ip_network(const char *input, uint32_t *ip, int *prefix_len) {
     return 0;
 }
 
+void format_binary(uint32_t num, char* out_str, size_t out_len) {
+    int pos = 0;
+    for (int i = 31; i >= 0 && pos < out_len - 1; i--) {
+        out_str[pos++] = ((num >> i) & 1) ? '1' : '0';
+        if (i % 8 == 0 && i > 0 && pos < out_len - 1) {
+            out_str[pos++] = '.';
+        }
+    }
+    out_str[pos] = '\0';
+}
+
 int calculate_network_info(uint32_t ip, int prefix_len, network_info_t *info) {
     if (prefix_len < 0 || prefix_len > 32) {
         return 0;
@@ -445,7 +456,7 @@ void subnetting(const char *network_str, const char *new_cidr_str) {
     
     int subnet_bits = new_cidr - original_cidr;
     int num_subnets = 1 << subnet_bits;
-    uint32_t subnet_size = 1U << (32 - new_cidr);
+    uint32_t subnet_size = (new_cidr == 32) ? 1 : (1U << (32 - new_cidr));
     
     print_header("=== Subnetting Results ===");
     print_color(ANSI_STYLE_BOLD, "Original Network: ");
@@ -468,7 +479,7 @@ void subnetting(const char *network_str, const char *new_cidr_str) {
     printf("%-20s %-15s %-15s %-10s\n", "--------------------", "---------------", "---------------", "----------");
     
     for (int i = 0; i < num_subnets && i < MAX_SUBNETS; i++) {
-        uint32_t subnet_addr = network_addr + (i * subnet_size);
+        uint32_t subnet_addr = network_addr + (uint64_t)i * subnet_size;
         network_info_t subnet_info;
         
         if (calculate_network_info(subnet_addr, new_cidr, &subnet_info)) {
@@ -479,11 +490,11 @@ void subnetting(const char *network_str, const char *new_cidr_str) {
             if (subnet_info.host_count > 0) {
                 format_ip(subnet_info.first_host_address, first_host, sizeof(first_host));
                 format_ip(subnet_info.last_host_address, last_host, sizeof(last_host));
-                printf("%-20s/%-2d %-15s %-15s %-10d\n", 
-                       subnet_ip, new_cidr, first_host, last_host, subnet_info.host_count);
+                printf("%-20s %-15s %-15s %-10d\n", 
+                       subnet_ip, first_host, last_host, subnet_info.host_count);
             } else {
-                printf("%-20s/%-2d %-15s %-15s %-10s\n", 
-                       subnet_ip, new_cidr, "N/A", "N/A", "0");
+                printf("%-20s %-15s %-15s %-10s\n", 
+                       subnet_ip, "N/A", "N/A", "0");
             }
         }
     }
@@ -522,23 +533,14 @@ void generate_routing_table(void) {
         return;
     }
     
-    char *token = strtok(input_line, ",");
+    char *token = strtok(input_line, " ,");
     while (token != NULL && dest_count < MAX_DESTINATIONS) {
-        while (*token == ' ' || *token == '\t') token++;
-        
-        char *end = token + strlen(token) - 1;
-        while (end > token && (*end == ' ' || *end == '\t')) {
-            *end = '\0';
-            end--;
-        }
-        
         if (strlen(token) > 0 && strlen(token) < MAX_INPUT) {
             strncpy(destinations[dest_count], token, MAX_INPUT - 1);
             destinations[dest_count][MAX_INPUT - 1] = '\0';
             dest_count++;
         }
-        
-        token = strtok(NULL, ",");
+        token = strtok(NULL, " ,");
     }
     
     if (dest_count == 0) {
@@ -566,11 +568,9 @@ void generate_routing_table(void) {
     
     int valid_routes = 0;
     for (int i = 0; i < dest_count; i++) {
-        if (validate_network_format(destinations[i])) {
-            uint32_t dest_ip;
-            int prefix_len;
-            parse_ip_network(destinations[i], &dest_ip, &prefix_len);
-            
+        uint32_t dest_ip;
+        int prefix_len;
+        if (parse_ip_network(destinations[i], &dest_ip, &prefix_len)) {
             char formatted_dest[MAX_INPUT];
             char dest_ip_str[INET_ADDRSTRLEN];
             format_ip(dest_ip & cidr_to_mask(prefix_len), dest_ip_str, sizeof(dest_ip_str));
@@ -610,9 +610,9 @@ void generate_routing_table(void) {
             print_header("Exported Routes");
             
             for (int i = 0; i < dest_count; i++) {
+                uint32_t dest_ip;
+                int prefix_len;
                 if (validate_network_format(destinations[i])) {
-                    uint32_t dest_ip;
-                    int prefix_len;
                     parse_ip_network(destinations[i], &dest_ip, &prefix_len);
                     
                     char formatted_dest[MAX_INPUT];
@@ -621,16 +621,22 @@ void generate_routing_table(void) {
                     snprintf(formatted_dest, sizeof(formatted_dest), "%s/%d", dest_ip_str, prefix_len);
                     
                     switch (choice) {
-                        case 1:
-                            print_color(ANSI_COLOR_YELLOW, "ip route %s %s", formatted_dest, next_hop);
+                        case 1: // Cisco
+                            {
+                                char mask_str[INET_ADDRSTRLEN];
+                                format_ip(cidr_to_mask(prefix_len), mask_str, sizeof(mask_str));
+                                print_color(ANSI_COLOR_YELLOW, "ip route %s %s %s", dest_ip_str, mask_str, next_hop);
+                            }
                             printf("\n");
                             break;
-                        case 2:
-                            print_color(ANSI_COLOR_YELLOW, "route add -net %s gw %s", formatted_dest, next_hop);
+                        case 2: // Linux
+                            snprintf(formatted_dest, sizeof(formatted_dest), "%s/%d", dest_ip_str, prefix_len);
+                            print_color(ANSI_COLOR_YELLOW, "ip route add %s via %s", formatted_dest, next_hop);
                             printf("\n");
                             break;
-                        case 3:
+                        case 3: // Simple
                         default:
+                            snprintf(formatted_dest, sizeof(formatted_dest), "%s/%d", dest_ip_str, prefix_len);
                             print_color(ANSI_COLOR_YELLOW, "%s => %s", formatted_dest, next_hop);
                             printf("\n");
                             break;
@@ -754,7 +760,7 @@ void print_usage(const char *prog_name) {
 }
 
 void init_colors(void) {
-    if (!isatty(STDOUT_FILENO)) {
+    if (!isatty(STDOUT_FILENO) || getenv("NO_COLOR")) {
         use_colors = 0;
     }
 }
@@ -776,11 +782,10 @@ int parse_args(int argc, char *argv[], char **network_input) {
             mode = 2;
         } else if (strcmp(argv[i], "--no-color") == 0) {
             use_colors = 0;
-        } else if (argv[i][0] != '-') {
-        
+        } else if (argv[i][0] != '-' && *network_input == NULL) {
             *network_input = argv[i];
         } else {
-            print_error("Unknown option");
+            print_error("Unknown or duplicate option");
             printf("Use -h or --help for usage information\n");
             exit(1);
         }
