@@ -56,11 +56,17 @@ typedef struct {
 
 int safe_input(char *buffer, int size) {
     if (!fgets(buffer, size, stdin)) {
+        // Handle EOF or read error
+        buffer[0] = '\0';
         return 0;
     }
     size_t len = strlen(buffer);
     if (len > 0 && buffer[len-1] == '\n') {
         buffer[len-1] = '\0';
+    } else {
+        // Clear the rest of the input buffer if input was too long
+        int c;
+        while ((c = getchar()) != '\n' && c != EOF);
     }
     return 1;
 }
@@ -74,10 +80,16 @@ int parse_ip(const char *ip_str, uint32_t *ip_int) {
     return 1;
 }
 
-void format_ip(uint32_t ip_int, char *ip_str) {
+void format_ip(uint32_t ip_int, char *ip_str, size_t ip_str_len) {
     struct in_addr addr;
     addr.s_addr = htonl(ip_int);
-    strcpy(ip_str, inet_ntoa(addr));
+    const char *ip = inet_ntoa(addr);
+    if (ip) {
+        strncpy(ip_str, ip, ip_str_len - 1);
+        ip_str[ip_str_len - 1] = '\0';
+    } else {
+        ip_str[0] = '\0';
+    }
 }
 
 uint32_t cidr_to_mask(int prefix_length) {
@@ -174,7 +186,7 @@ int calculate_network_info(uint32_t ip, int prefix_len, network_info_t *info) {
         return 0;
     }
     
-    info->prefix_len = prefix_len;
+    info->prefix_length = prefix_len;
     info->subnet_mask = cidr_to_mask(prefix_len);
     info->network_address = ip & info->subnet_mask;
     
@@ -224,52 +236,52 @@ void lazy_mode(const char *input) {
     
     print_separator();
     
-    format_ip(info.network_address, ip_str);
-    print_color(COLOR_BOLD, "Network Address: ");
-    print_color(COLOR_GREEN, "%s", ip_str);
+    format_ip(info.network_address, ip_str, sizeof(ip_str));
+    print_color(ANSI_STYLE_BOLD, "Network Address: ");
+    print_color(ANSI_COLOR_GREEN, "%s", ip_str);
     printf("\n");
     
-    format_ip(info.subnet_mask, ip_str);
-    print_color(COLOR_BOLD, "Subnet Mask: ");
-    print_color(COLOR_GREEN, "%s", ip_str);
+    format_ip(info.subnet_mask, ip_str, sizeof(ip_str));
+    print_color(ANSI_STYLE_BOLD, "Subnet Mask: ");
+    print_color(ANSI_COLOR_GREEN, "%s", ip_str);
     printf(" ");
-    print_color(COLOR_CYAN, "(/%d)", info.prefix_len);
+    print_color(ANSI_COLOR_CYAN, "(/%d)", info.prefix_length);
     printf("\n");
 	
-	format_ip(info.broadcast_address, ip_str);
-	print_color(COLOR_BOLD, "Broadcast Address: ");
-	print_color(COLOR_GREEN, "%s", ip_str);
+	format_ip(info.broadcast_address, ip_str, sizeof(ip_str));
+	print_color(ANSI_STYLE_BOLD, "Broadcast Address: ");
+	print_color(ANSI_COLOR_GREEN, "%s", ip_str);
 	printf("\n");
     
     if (info.host_count > 0) {
-        format_ip(info.first_host_address, ip_str);
-        print_color(COLOR_BOLD, "Host Range: ");
-        print_color(COLOR_YELLOW, "%s", ip_str);
+        format_ip(info.first_host_address, ip_str, sizeof(ip_str));
+        print_color(ANSI_STYLE_BOLD, "Host Range: ");
+        print_color(ANSI_COLOR_YELLOW, "%s", ip_str);
         printf(" - ");
-        format_ip(info.last_host_address, ip_str);
-        print_color(COLOR_YELLOW, "%s", ip_str);
+        format_ip(info.last_host_address, ip_str, sizeof(ip_str));
+        print_color(ANSI_COLOR_YELLOW, "%s", ip_str);
         printf("\n");
-        print_color(COLOR_BOLD, "Number of Hosts: ");
-        print_color(COLOR_MAGENTA, "%d", info.host_count);
+        print_color(ANSI_STYLE_BOLD, "Number of Hosts: ");
+        print_color(ANSI_COLOR_MAGENTA, "%d", info.host_count);
         printf("\n");
     } else if (prefix_len == 31) {
-        format_ip(info.first_host_address, ip_str);
-        print_color(COLOR_BOLD, "Host Range: ");
-        print_color(COLOR_YELLOW, "%s", ip_str);
+        format_ip(info.first_host_address, ip_str, sizeof(ip_str));
+        print_color(ANSI_STYLE_BOLD, "Host Range: ");
+        print_color(ANSI_COLOR_YELLOW, "%s", ip_str);
         printf(" - ");
-        format_ip(info.last_host_address, ip_str);
-        print_color(COLOR_YELLOW, ip_str);
-        print_color(COLOR_CYAN, " (point-to-point)");
+        format_ip(info.last_host_address, ip_str, sizeof(ip_str));
+        print_color(ANSI_COLOR_YELLOW, ip_str);
+        print_color(ANSI_COLOR_CYAN, " (point-to-point)");
         printf("\n");
-        print_color(COLOR_BOLD, "Number of Hosts: ");
-        print_color(COLOR_MAGENTA, "2");
+        print_color(ANSI_STYLE_BOLD, "Number of Hosts: ");
+        print_color(ANSI_COLOR_MAGENTA, "2");
         printf("\n");
     } else {
-        print_color(COLOR_BOLD, "Host Range: ");
-        print_color(COLOR_RED, "No hosts (host route)");
+        print_color(ANSI_STYLE_BOLD, "Host Range: ");
+        print_color(ANSI_COLOR_RED, "No hosts (host route)");
         printf("\n");
-        print_color(COLOR_BOLD, "Number of Hosts: ");
-        print_color(COLOR_MAGENTA, "0");
+        print_color(ANSI_STYLE_BOLD, "Number of Hosts: ");
+        print_color(ANSI_COLOR_MAGENTA, "0");
         printf("\n");
     }
     
@@ -296,10 +308,10 @@ void bitwise_and_operation(const char *ip_str, const char *mask_input) {
     }
     
     result = ip & mask;
-    format_ip(result, result_str);
+    format_ip(result, result_str, sizeof(result_str));
     
-    print_color(COLOR_BOLD, "Network Address: ");
-    print_color(COLOR_GREEN, "%s", result_str);
+    print_color(ANSI_STYLE_BOLD, "Network Address: ");
+    print_color(ANSI_COLOR_GREEN, "%s", result_str);
     printf("\n");
 }
 
@@ -309,21 +321,21 @@ void decimal_to_binary(int octet) {
         return;
     }
     
-    print_color(COLOR_BOLD, "Decimal: ");
-    print_color(COLOR_CYAN, "%d", octet);
+    print_color(ANSI_STYLE_BOLD, "Decimal: ");
+    print_color(ANSI_COLOR_CYAN, "%d", octet);
     printf("\n");
     
-    print_color(COLOR_BOLD, "Binary: ");
-    print_color(COLOR_GREEN, "");
+    print_color(ANSI_STYLE_BOLD, "Binary: ");
+    print_color(ANSI_COLOR_GREEN, "");
     for (int i = 7; i >= 0; i--) {
         printf("%d", (octet >> i) & 1);
         if (i == 4) printf(" ");
     }
-    printf("%s", COLOR_RESET);
+    printf("%s", ANSI_COLOR_RESET);
     printf("\n");
     
-    print_color(COLOR_BOLD, "Hex: ");
-    print_color(COLOR_YELLOW, "0x%02X", octet);
+    print_color(ANSI_STYLE_BOLD, "Hex: ");
+    print_color(ANSI_COLOR_YELLOW, "0x%02X", octet);
     printf("\n");
 }
 
@@ -352,16 +364,16 @@ void binary_to_decimal(const char *binary_input) {
         decimal = decimal * 2 + (binary[i] - '0');
     }
     
-    print_color(COLOR_BOLD, "Binary: ");
-    print_color(COLOR_GREEN, "%.4s %.4s", binary, binary + 4);
+    print_color(ANSI_STYLE_BOLD, "Binary: ");
+    print_color(ANSI_COLOR_GREEN, "%.4s %.4s", binary, binary + 4);
     printf("\n");
     
-    print_color(COLOR_BOLD, "Decimal: ");
-    print_color(COLOR_CYAN, "%d", decimal);
+    print_color(ANSI_STYLE_BOLD, "Decimal: ");
+    print_color(ANSI_COLOR_CYAN, "%d", decimal);
     printf("\n");
     
-    print_color(COLOR_BOLD, "Hex: ");
-    print_color(COLOR_YELLOW, "0x%02X", decimal);
+    print_color(ANSI_STYLE_BOLD, "Hex: ");
+    print_color(ANSI_COLOR_YELLOW, "0x%02X", decimal);
     printf("\n");
 }
 
@@ -375,18 +387,18 @@ void cidr_to_binary_mask(const char *cidr_input) {
     
     uint32_t mask = cidr_to_mask(cidr);
     char mask_str[INET_ADDRSTRLEN];
-    format_ip(mask, mask_str);
+    format_ip(mask, mask_str, sizeof(mask_str));
     
-    print_color(COLOR_BOLD, "CIDR: ");
-    print_color(COLOR_CYAN, "/%d", cidr);
+    print_color(ANSI_STYLE_BOLD, "CIDR: ");
+    print_color(ANSI_COLOR_CYAN, "/%d", cidr);
     printf("\n");
     
-    print_color(COLOR_BOLD, "Decimal Mask: ");
-    print_color(COLOR_GREEN, "%s", mask_str);
+    print_color(ANSI_STYLE_BOLD, "Decimal Mask: ");
+    print_color(ANSI_COLOR_GREEN, "%s", mask_str);
     printf("\n");
     
-    print_color(COLOR_BOLD, "Binary Mask: ");
-    print_color(COLOR_YELLOW, "");
+    print_color(ANSI_STYLE_BOLD, "Binary Mask: ");
+    print_color(ANSI_COLOR_YELLOW, "");
     for (int octet = 3; octet >= 0; octet--) {
         uint8_t byte = (mask >> (octet * 8)) & 0xFF;
         for (int bit = 7; bit >= 0; bit--) {
@@ -394,11 +406,11 @@ void cidr_to_binary_mask(const char *cidr_input) {
         }
         if (octet > 0) printf(".");
     }
-    printf("%s", COLOR_RESET);
+    printf("%s", ANSI_COLOR_RESET);
     printf("\n");
     
-    print_color(COLOR_BOLD, "Hex Mask: ");
-    print_color(COLOR_MAGENTA, "0x%08X", mask);
+    print_color(ANSI_STYLE_BOLD, "Hex Mask: ");
+    print_color(ANSI_COLOR_MAGENTA, "0x%08X", mask);
     printf("\n");
 }
 
@@ -436,18 +448,18 @@ void subnetting(const char *network_str, const char *new_cidr_str) {
     uint32_t subnet_size = 1U << (32 - new_cidr);
     
     print_header("=== Subnetting Results ===");
-    print_color(COLOR_BOLD, "Original Network: ");
+    print_color(ANSI_STYLE_BOLD, "Original Network: ");
     char orig_ip[INET_ADDRSTRLEN];
-    format_ip(network_addr, orig_ip);
-    print_color(COLOR_CYAN, "%s/%d", orig_ip, original_cidr);
+    format_ip(network_addr, orig_ip, sizeof(orig_ip));
+    print_color(ANSI_COLOR_CYAN, "%s/%d", orig_ip, original_cidr);
     printf("\n");
     
-    print_color(COLOR_BOLD, "New Subnet Size: ");
-    print_color(COLOR_YELLOW, "/%d", new_cidr);
+    print_color(ANSI_STYLE_BOLD, "New Subnet Size: ");
+    print_color(ANSI_COLOR_YELLOW, "/%d", new_cidr);
     printf("\n");
     
-    print_color(COLOR_BOLD, "Number of Subnets: ");
-    print_color(COLOR_MAGENTA, "%d", num_subnets);
+    print_color(ANSI_STYLE_BOLD, "Number of Subnets: ");
+    print_color(ANSI_COLOR_MAGENTA, "%d", num_subnets);
     printf("\n");
     
     print_separator();
@@ -462,11 +474,11 @@ void subnetting(const char *network_str, const char *new_cidr_str) {
         if (calculate_network_info(subnet_addr, new_cidr, &subnet_info)) {
             char subnet_ip[INET_ADDRSTRLEN], first_host[INET_ADDRSTRLEN], last_host[INET_ADDRSTRLEN];
             
-            format_ip(subnet_info.network_address, subnet_ip);
+            format_ip(subnet_info.network_address, subnet_ip, sizeof(subnet_ip));
             
             if (subnet_info.host_count > 0) {
-                format_ip(subnet_info.first_host_address, first_host);
-                format_ip(subnet_info.last_host_address, last_host);
+                format_ip(subnet_info.first_host_address, first_host, sizeof(first_host));
+                format_ip(subnet_info.last_host_address, last_host, sizeof(last_host));
                 printf("%-20s/%-2d %-15s %-15s %-10d\n", 
                        subnet_ip, new_cidr, first_host, last_host, subnet_info.host_count);
             } else {
@@ -501,8 +513,8 @@ void generate_routing_table(void) {
     printf("  • Single IP: 192.168.1.1 (assumes /32)\n");
     printf("\n");
     
-    print_color(COLOR_BOLD, "Enter destination networks ");
-    print_color(COLOR_CYAN, "(separate with spaces or commas):\n");
+    print_color(ANSI_STYLE_BOLD, "Enter destination networks ");
+    print_color(ANSI_COLOR_CYAN, "(separate with spaces or commas):\n");
     printf("Destinations: ");
     
     if (!safe_input(input_line, sizeof(input_line))) {
@@ -534,7 +546,7 @@ void generate_routing_table(void) {
         return;
     }
     
-    print_color(COLOR_BOLD, "Enter next-hop IP address: ");
+    print_color(ANSI_STYLE_BOLD, "Enter next-hop IP address: ");
     if (!safe_input(next_hop, sizeof(next_hop))) {
         print_error("Input error");
         return;
@@ -561,30 +573,30 @@ void generate_routing_table(void) {
             
             char formatted_dest[MAX_INPUT];
             char dest_ip_str[INET_ADDRSTRLEN];
-            format_ip(dest_ip & cidr_to_mask(prefix_len), dest_ip_str);
+            format_ip(dest_ip & cidr_to_mask(prefix_len), dest_ip_str, sizeof(dest_ip_str));
             snprintf(formatted_dest, sizeof(formatted_dest), "%s/%d", dest_ip_str, prefix_len);
             
             printf("%-25s %-15s ", formatted_dest, next_hop);
-            print_color(COLOR_GREEN, "Valid");
+            print_color(ANSI_COLOR_GREEN, "Valid");
             printf("\n");
             valid_routes++;
         } else {
             printf("%-25s %-15s ", destinations[i], next_hop);
-            print_color(COLOR_RED, "Invalid");
+            print_color(ANSI_COLOR_RED, "Invalid");
             printf("\n");
         }
     }
     
     printf("\n");
-    print_color(COLOR_BOLD, "Summary: ");
-    print_color(COLOR_GREEN, "%d", valid_routes);
+    print_color(ANSI_STYLE_BOLD, "Summary: ");
+    print_color(ANSI_COLOR_GREEN, "%d", valid_routes);
     printf(" valid routes generated out of ");
-    print_color(COLOR_CYAN, "%d", dest_count);
+    print_color(ANSI_COLOR_CYAN, "%d", dest_count);
     printf(" destinations\n");
     
     if (valid_routes > 0) {
         printf("\n");
-        print_color(COLOR_BOLD, "Export formats:\n");
+        print_color(ANSI_STYLE_BOLD, "Export formats:\n");
         printf("1. Cisco IOS format\n");
         printf("2. Linux route format\n");
         printf("3. Simple format\n");
@@ -605,21 +617,21 @@ void generate_routing_table(void) {
                     
                     char formatted_dest[MAX_INPUT];
                     char dest_ip_str[INET_ADDRSTRLEN];
-                    format_ip(dest_ip & cidr_to_mask(prefix_len), dest_ip_str);
+                    format_ip(dest_ip & cidr_to_mask(prefix_len), dest_ip_str, sizeof(dest_ip_str));
                     snprintf(formatted_dest, sizeof(formatted_dest), "%s/%d", dest_ip_str, prefix_len);
                     
                     switch (choice) {
                         case 1:
-                            print_color(COLOR_YELLOW, "ip route %s %s", formatted_dest, next_hop);
+                            print_color(ANSI_COLOR_YELLOW, "ip route %s %s", formatted_dest, next_hop);
                             printf("\n");
                             break;
                         case 2:
-                            print_color(COLOR_YELLOW, "route add -net %s gw %s", formatted_dest, next_hop);
+                            print_color(ANSI_COLOR_YELLOW, "route add -net %s gw %s", formatted_dest, next_hop);
                             printf("\n");
                             break;
                         case 3:
                         default:
-                            print_color(COLOR_YELLOW, "%s => %s", formatted_dest, next_hop);
+                            print_color(ANSI_COLOR_YELLOW, "%s => %s", formatted_dest, next_hop);
                             printf("\n");
                             break;
                     }
@@ -644,7 +656,7 @@ void manual_mode(void) {
         printf("6. Generate Routing Table (Multiple Destinations)\n");
         printf("7. Exit\n");
         
-        print_color(COLOR_BOLD, "Select option (1-7): ");
+        print_color(ANSI_STYLE_BOLD, "Select option (1-7): ");
         
         if (!safe_input(input, sizeof(input))) {
             print_error("Input error");
@@ -656,16 +668,16 @@ void manual_mode(void) {
         switch (choice) {
             case 1: {
                 char ip[MAX_INPUT], mask[MAX_INPUT];
-                print_color(COLOR_CYAN, "Enter IP address: ");
+                print_color(ANSI_COLOR_CYAN, "Enter IP address: ");
                 if (!safe_input(ip, sizeof(ip))) continue;
-                print_color(COLOR_CYAN, "Enter subnet mask or CIDR (e.g., 255.255.255.0 or /24): ");
+                print_color(ANSI_COLOR_CYAN, "Enter subnet mask or CIDR (e.g., 255.255.255.0 or /24): ");
                 if (!safe_input(mask, sizeof(mask))) continue;
                 bitwise_and_operation(ip, mask);
                 break;
             }
             
             case 2: {
-                print_color(COLOR_CYAN, "Enter decimal octet (0-255): ");
+                print_color(ANSI_COLOR_CYAN, "Enter decimal octet (0-255): ");
                 if (!safe_input(input, sizeof(input))) continue;
                 int octet = atoi(input);
                 decimal_to_binary(octet);
@@ -673,14 +685,14 @@ void manual_mode(void) {
             }
             
             case 3: {
-                print_color(COLOR_CYAN, "Enter 8-bit binary (e.g., 11000000 or 1100 0000): ");
+                print_color(ANSI_COLOR_CYAN, "Enter 8-bit binary (e.g., 11000000 or 1100 0000): ");
                 if (!safe_input(input, sizeof(input))) continue;
                 binary_to_decimal(input);
                 break;
             }
             
             case 4: {
-                print_color(COLOR_CYAN, "Enter CIDR (e.g., /24 or 24): ");
+                print_color(ANSI_COLOR_CYAN, "Enter CIDR (e.g., /24 or 24): ");
                 if (!safe_input(input, sizeof(input))) continue;
                 cidr_to_binary_mask(input);
                 break;
@@ -688,9 +700,9 @@ void manual_mode(void) {
             
             case 5: {
                 char network[MAX_INPUT], new_cidr_str[MAX_INPUT];
-                print_color(COLOR_CYAN, "Enter network (e.g., 192.168.1.0/24 or 192.168.1.0 255.255.255.0): ");
+                print_color(ANSI_COLOR_CYAN, "Enter network (e.g., 192.168.1.0/24 or 192.168.1.0 255.255.255.0): ");
                 if (!safe_input(network, sizeof(network))) continue;
-                print_color(COLOR_CYAN, "Enter new CIDR (e.g., /26 or 26): ");
+                print_color(ANSI_COLOR_CYAN, "Enter new CIDR (e.g., /26 or 26): ");
                 if (!safe_input(new_cidr_str, sizeof(new_cidr_str))) continue;
                 subnetting(network, new_cidr_str);
                 break;
@@ -711,7 +723,7 @@ void manual_mode(void) {
         }
         
         printf("\n");
-        print_color(COLOR_BOLD, "Press Enter to continue...");
+        print_color(ANSI_STYLE_BOLD, "Press Enter to continue...");
         getchar();
     }
 }
@@ -720,25 +732,25 @@ void print_usage(const char *prog_name) {
     print_header("Network Configuration Tool");
     printf("Usage: %s [OPTIONS] [NETWORK]\n\n", prog_name);
     
-    print_color(COLOR_BOLD, "OPTIONS:\n");
+    print_color(ANSI_STYLE_BOLD, "OPTIONS:\n");
     printf("  -l, --lazy [NETWORK]     Lazy mode - analyze network (default)\n");
     printf("  -m, --manual             Manual mode - interactive menu\n");
     printf("  -h, --help               Show this help message\n");
     printf("  --no-color               Disable color output\n\n");
     
-    print_color(COLOR_BOLD, "NETWORK FORMATS:\n");
+    print_color(ANSI_STYLE_BOLD, "NETWORK FORMATS:\n");
     printf("  • IP/CIDR:     192.168.1.10/24\n");
     printf("  • IP MASK:     192.168.1.10 255.255.255.0\n");
     printf("  • IP CIDR:     192.168.1.10 24\n");
     printf("  • Just IP:     192.168.1.10 (assumes /32)\n\n");
     
-    print_color(COLOR_BOLD, "EXAMPLES:\n");
+    print_color(ANSI_STYLE_BOLD, "EXAMPLES:\n");
     printf("  %s 192.168.1.10/24                    # Analyze network\n", prog_name);
     printf("  %s -l 10.0.0.0/8                     # Lazy mode\n", prog_name);
     printf("  %s -m                                 # Manual mode\n", prog_name);
     printf("  %s --no-color 172.16.0.0/12          # No colors\n", prog_name);
 
-	print_color(COLOR_BOLD, "\nCoded by Yo-omega (https://github.com/Yo-omega)\n");
+	print_color(ANSI_STYLE_BOLD, "\nCoded by Yo-omega (https://github.com/Yo-omega)\n");
 }
 
 void init_colors(void) {
@@ -794,7 +806,7 @@ int main(int argc, char *argv[]) {
         if (network_input) {
             lazy_mode(network_input);
         } else {
-            print_color(COLOR_BOLD, "Enter network specification: ");
+            print_color(ANSI_STYLE_BOLD, "Enter network specification: ");
             if (!safe_input(input, sizeof(input))) {
                 print_error("Input error");
                 return 1;
