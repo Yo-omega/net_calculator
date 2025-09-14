@@ -796,33 +796,27 @@ int parse_args(int argc, char *argv[], char **network_input) {
 
 int main(int argc, char *argv[]) {
     char *network_input = NULL;
-    char input[MAX_INPUT];
     int mode;
     
     init_colors();
     
+    if (argc == 1) {
+        print_usage(argv[0]);
+        return 0;
+    }
+    
     mode = parse_args(argc, argv, &network_input);
 
-    print_separator();
-    print_header("Network Configuration Tool v2.0");
-    print_separator();
-    
     if (mode == 1) {
         if (network_input) {
             lazy_mode(network_input);
         } else {
-            print_color(ANSI_STYLE_BOLD, "Enter network specification: ");
-            if (!safe_input(input, sizeof(input))) {
-                print_error("Input error");
-                return 1;
-            }
-            lazy_mode(input);
+            print_error("No network specified for lazy mode.");
+            print_usage(argv[0]);
+            return 1;
         }
     } else if (mode == 2) {
         manual_mode();
-    } else {
-        print_error("Invalid mode");
-        return 1;
     }
     
     printf("\n");
