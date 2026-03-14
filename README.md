@@ -15,12 +15,6 @@ A command-line tool for network math. It handles IPv4 analysis, subnetting, VLSM
 ## Installation
 
 ```bash
-pip install netcalc-tool
-```
-
-Or just clone and install locally:
-
-```bash
 git clone https://github.com/Yo-omega/net_calculator.git
 cd net_calculator
 pip install -e .
