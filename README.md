@@ -15,7 +15,7 @@ A command-line tool for network math. It handles IPv4 analysis, subnetting, VLSM
 ## Installation
 
 ```bash
-git clone https://github.com/Yo-omega/net_calculator.git
+git clone https://github.com/authyx/net_calculator.git
 cd net_calculator
 pip install -e .
 ```
@@ -69,4 +69,4 @@ MIT — see [LICENSE](LICENSE).
 
 ---
 
-[Yo-omega](https://github.com/Yo-omega)
+[Yo-omega](https://github.com/authyx)
